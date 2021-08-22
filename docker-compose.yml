@@ -1,0 +1,80 @@
+version: '3'
+
+networks:
+  nginx-php74-mysql8-node:
+
+services:
+
+  nginx:
+    build:
+      context: ./docker/nginx
+      dockerfile: ./Dockerfile
+      args:
+        NGINX_HOST: ${NGINX_HOST}
+        PROJECT_ROOT: ${PROJECT_ROOT}
+    container_name: nginx-container
+    # host : container
+    ports:
+      - 8080:80
+      - 443:443
+    volumes:
+      - ./app:${PROJECT_ROOT}
+      - ./docker/nginx/conf/default_template.conf:/etc/nginx/conf.d/default.template
+      - ./log/nginx:/var/log/nginx
+    env_file:
+      - .env
+    depends_on:
+      - php74
+      - mysql
+    command: /bin/bash -c "envsubst '$$NGINX_HOST $$PROJECT_ROOT'
+      < /etc/nginx/conf.d/default.template
+      > /etc/nginx/conf.d/default.conf
+      && exec nginx -g 'daemon off;'"
+    networks:
+      - nginx-php74-mysql8-node
+
+  php74:
+    build:
+      context: ./docker/php
+      args:
+        PHP_VERSION: ${PHP_VERSION}
+        PROJECT_ROOT: ${PROJECT_ROOT}
+    container_name: php74-container
+    env_file:
+      - .env
+    ports:
+      - "9000:9000"
+    volumes:
+      - ./app:${PROJECT_ROOT}:rw,cached
+    networks:
+      - nginx-php74-mysql8-node
+
+  mysql:
+    image: mysql:8.0
+    container_name: mysql8-container
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    restart: always
+    volumes:
+      - ./data:/var/lib/mysql
+    env_file:
+      - .env
+    ports:
+      - "4306:3306"
+    networks:
+      - nginx-php74-mysql8-node
+
+  node:
+    image: node:latest
+    container_name: node-container
+    working_dir: "${PROJECT_ROOT}"
+    env_file:
+      - .env
+    volumes:
+      - ./app:${PROJECT_ROOT}
+    # to keep container running:
+#    command: tail -f /dev/null
+    networks:
+      - nginx-php74-mysql8-node
+
+volumes:
+  log.nginx:
