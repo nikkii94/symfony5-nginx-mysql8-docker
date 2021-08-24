@@ -11,5 +11,6 @@ SSH into php container:
 ```
 
 Create new Symfony project:
-
-`composer create-project symfony /skeleton`
+```
+    composer create-project symfony /skeleton
+```
